@@ -1,10 +1,22 @@
 import torch.utils.data as data
 from PIL import Image
+import pandas as pd
 
 def read_list(root, fileList):
     imgList = []
     c_dict = []
     k=-1
+    imagelist = pd.read_csv('Food-101N_release/meta/imagelist.tsv', sep='/')
+    labels = imagelist['class_name'].unique()
+    label_map = {label:i for i, label in enumerate(labels)}
+    grouped = imagelist.groupby('class_name')
+    subgroup = grouped.apply(lambda x: x.head(100))
+    for i,row in enumerate(subgroup.itertuples()):
+      imgPath = root+'/images'+str(row.key)+'.jpg'
+      label = label_map[row.class_name]
+      imgList.append((imgPath,label))
+    return imgList
+
     with open(root + '/' + fileList, 'r') as file:
         for line in file.readlines():
             row = line.strip().split('\t')
@@ -56,3 +68,7 @@ class Food101N(data.Dataset):
 
     def __len__(self):
         return len(self.imgList)
+  
+if __name__ == '__main__':
+  imgList = read_list('data/food/Food-101N_release', 'imagelist.tsv')
+  print(len(imgList))
