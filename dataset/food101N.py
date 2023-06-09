@@ -6,7 +6,7 @@ def read_list(root, fileList):
     imgList = []
     c_dict = []
     k=-1
-    imagelist = pd.read_csv('Food-101N_release/meta/imagelist.tsv', sep='/')
+    imagelist = pd.read_csv('data/food/Food-101N_release/meta/imagelist.tsv', sep='/')
     labels = imagelist['class_name'].unique()
     label_map = {label:i for i, label in enumerate(labels)}
     grouped = imagelist.groupby('class_name')
