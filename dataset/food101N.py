@@ -12,7 +12,7 @@ def read_list(root, fileList):
     grouped = imagelist.groupby('class_name')
     subgroup = grouped.apply(lambda x: x.head(100))
     for i,row in enumerate(subgroup.itertuples()):
-      imgPath = root+'/images'+str(row.key)+'.jpg'
+      imgPath = root+'/images'+'/'+row.class_name+'/'+str(row.key)
       label = label_map[row.class_name]
       imgList.append((imgPath,label))
     return imgList
