@@ -5,11 +5,12 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.autograd import Variable
 from torchvision import transforms
+import matplotlib.pyplot as plt
 import os
 import torch.nn.parallel
 import argparse
 import afm
-from dataset import Food101, Food101N
+from dataset import Food101, Food101N, Drinks
 
 parser = argparse.ArgumentParser(description='WILDCAT Training')
 parser.add_argument('--network', default='resnet50', type=str,
@@ -52,6 +53,13 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
+def plot_metric(metric_iter, x, xlabel='NA',ylabel='epochs'):
+  plt.plot(x, metric_iter)
+  plt.xlabel('')
+  plt.ylabel('')
+  # plt.title("")
+  plt.show()
+
 if __name__ == '__main__':
 
     args = parser.parse_args()
@@ -65,30 +73,39 @@ if __name__ == '__main__':
     save_path_result = os.path.join('results/food_result')
     mkdir(save_path_result)
 
+    train_transforms = transforms.Compose([transforms.RandomResizedCrop(224),
+                         transforms.RandomHorizontalFlip(),
+                         transforms.ToTensor(),
+                         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+
+    test_transforms = transforms.Compose([
+                        transforms.Resize(256),
+                        transforms.CenterCrop(224),
+                        transforms.ToTensor(),
+                        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ])
+
     if args.dataset == 'food':
         listfile = './data/Food-101N_release/meta/imagelist.tsv'
         val_listfile = './data/food-101/meta/test.txt'
 
         num_cls = 101
+        train_data = Food101N(root=args.data_root + '/Food-101N_release',
+                     transform=train_transforms)
+        
+        test_data = Food101(root=args.data_root + '/food-101',
+                    transform=test_transforms)
+        train_data = Drinks(train_transforms, 0, 75)
+        test_data = Drinks(test_transforms, 75, 100)
+        
+
         train_loader = torch.utils.data.DataLoader(
-            Food101N(root=args.data_root + '/Food-101N_release',
-                     transform=transforms.Compose([
-                         transforms.RandomResizedCrop(224),
-                         transforms.RandomHorizontalFlip(),
-                         transforms.ToTensor(),
-                         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-                     ])),
+            train_data,
             batch_size=args.train_batch, shuffle=True,
             num_workers=args.workers, pin_memory=True,drop_last=True)
 
         valid_loader = torch.utils.data.DataLoader(
-            Food101(root=args.data_root + '/food-101',
-                    transform=transforms.Compose([
-                        transforms.Resize(256),
-                        transforms.CenterCrop(224),
-                        transforms.ToTensor(),
-                        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-            ])),
+            test_data,
             batch_size=args.test_batch, shuffle=False,
             num_workers=args.workers, pin_memory=True)
 
@@ -98,6 +115,11 @@ if __name__ == '__main__':
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
     lr_scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=args.schedule, gamma=args.gamma)
+
+    training_losses = []
+    training_acc = []
+    valid_losses = []
+    valid_acc = []
 
     ## training
     for epoch in range(args.epochs):
@@ -149,6 +171,9 @@ if __name__ == '__main__':
         print('Train Loss: {:.4f}, Acc: {:.4f}'.format(running_loss,
                                                        corrects_all))
 
+        training_losses.append(running_loss)
+        training_acc.append(corrects_all)
+
         model.eval()
         running_valid_loss = 0.0
         running_valid_corrects = 0
@@ -183,6 +208,9 @@ if __name__ == '__main__':
         print('Valid Loss: {:.6f}, Acc: {:.6f}'.format(running_valid_loss,
                                                        valid_corrects_all))
 
+        valid_losses.append(running_valid_loss)
+        valid_acc.append(valid_corrects_all)
+
         torch.save(model.state_dict(), save_path + 'model_%d.pkl'%epoch)
         lr_scheduler.step()
         is_best = valid_corrects_all > best_acc1
@@ -192,4 +220,10 @@ if __name__ == '__main__':
             best_model = model
             print('Best best_acc1 {}'.format(best_acc1))
             torch.save(best_model.state_dict(), save_path + 'model_best.pkl')
-    save_obj.close()
+    
+    plot_metric(training_losses, range(args.epochs), 'training loss')
+    plot_metric(training_acc, range(args.epochs), 'training accuracy')
+    plot_metric(training_losses, range(args.epochs), 'validation loss')
+    plot_metric(training_losses, range(args.epochs), 'validation accuracy')
+
+    # save_obj.close()
