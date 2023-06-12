@@ -95,19 +95,21 @@ if __name__ == '__main__':
         
         test_data = Food101(root=args.data_root + '/food-101',
                     transform=test_transforms)
+        
+    if args.dataset == 'drinks':
         train_data = Drinks(train_transforms, 0, 75)
         test_data = Drinks(test_transforms, 75, 100)
         
 
-        train_loader = torch.utils.data.DataLoader(
-            train_data,
-            batch_size=args.train_batch, shuffle=True,
-            num_workers=args.workers, pin_memory=True,drop_last=True)
+    train_loader = torch.utils.data.DataLoader(
+        train_data,
+        batch_size=args.train_batch, shuffle=True,
+        num_workers=args.workers, pin_memory=True,drop_last=True)
 
-        valid_loader = torch.utils.data.DataLoader(
-            test_data,
-            batch_size=args.test_batch, shuffle=False,
-            num_workers=args.workers, pin_memory=True)
+    valid_loader = torch.utils.data.DataLoader(
+        test_data,
+        batch_size=args.test_batch, shuffle=False,
+        num_workers=args.workers, pin_memory=True)
 
     model = afm.__dict__[args.network](pretrained=True, num_classes=num_cls)
     model = torch.nn.DataParallel(model)
